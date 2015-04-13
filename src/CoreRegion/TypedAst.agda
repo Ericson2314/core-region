@@ -13,7 +13,7 @@ data Ast (Prim : Set) : ∀ {n} → (tenv : Vec Type n) → Type → Set where
   prim-val : ∀ {n e} → Prim → Ast Prim {n} e prim
   prim-app : ∀ {n e a} → (Vec Prim a → Prim) → Vec Prim a → Ast Prim {n} e prim
 
-  let-in   : ∀ {n e t u} → Ast Prim e t → Ast Prim (u ∷ e) u → Ast Prim {n} e u
+  let-in   : ∀ {n e t u} → Ast Prim e t → Ast Prim (t ∷ e) u → Ast Prim {n} e u
   iden     : ∀ {n e} → (i : Fin n) → Ast Prim {n} e (lookup i e)
 
   ref      : ∀ {n e} → (i : Fin n) → Ast Prim {n} e (pointer (lookup i e))
