@@ -1,11 +1,20 @@
 module CoreRegion.Ast.Regioned where
 
 open import Category.Functor
+open RawFunctor {{...}}
+
+open import Category.Applicative
+--open RawApplicative {{...}}
 
 open import Data.Empty
+open import Data.Unit
 
-open import Data.Nat hiding (_≤_)
-open import Data.Fin hiding (_≤_)
+import Data.Nat
+open Data.Nat hiding (pred; suc)
+
+import Data.Fin
+open Data.Fin hiding (pred; suc)
+
 open import Data.Vec
 open import Data.List
 open import Data.Product
@@ -20,45 +29,74 @@ open import Function
 import CoreRegion.Region as R
 open R using (Region)
 
+module T where
 
-data Type : (r : Region) → Set where
-  unit : Type nothing
-  prim : Type nothing
-  --pointer : ∀ r2 → (Σ[ r1 ∈ Region ] (Type r1)) → Type r2 -- might need to tighten
-  pointer : ∀ r2 → Type nothing → Type r2 -- might need to tighten
+  data Type : Set where
+    unit : Type
+    prim : Type
+    pointer : Region → Type → Type
 
-decrementE : {r : Region} {w : ¬ (r ≡ just 0)} → Type r → Type (R.pred r {w})
-decrementE = λ
-  { unit → unit
-  ; prim → prim
-  ; {r} {w} (pointer .r x) → pointer (R.pred r {w}) x -- (R.pred _) x
-  }
+  nonZero : Type → Set
+  nonZero (pointer r t) = R.nonZero r × nonZero t
+  nonZero _             = ⊤
+
+  suc : Type → Type
+  suc (pointer r t) = pointer (R.suc r) $ suc t
+  suc basicT        = basicT
+
+  pred : (t : Type) → {_ : nonZero t} → Type
+  pred (pointer r t) {rnz , tnz} = pointer (R.pred r {rnz}) $ pred t {tnz}
+  pred basicT                    = basicT
+
+open T hiding (suc; pred) public
 
 Env : ℕ → Set
---Env n = Vec (Σ[ r ∈ Region ] (Type r)) n
-Env n = Vec (Type nothing) n
+Env n = Vec Type n
 
 
-data Ast (Prim : Set) : ∀ {n r} → (tenv : Env n) → Type r → Set where
-  prim-val : ∀ {n e} → Prim → Ast Prim {n} e prim
-  prim-app : ∀ {n e a} → (Vec Prim a → Prim) → Vec Prim a → Ast Prim {n} e prim
 
-  let-in   : ∀ {n e r t}
-             → (good : ¬ (r ≡ just 0))
-             → (u : Type r)
+instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
+vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
+
+data Ast (Prim : Set) : ∀ {n} → (tenv : Env n) → Type → Set where
+
+  prim-val : ∀ {n e}
+             → Prim
+             → Ast Prim {n} e prim
+
+  prim-app : ∀ {n e a}
+             → (Vec Prim a
+             → Prim)
+             → Vec Prim a
+             → Ast Prim {n} e prim
+
+  let-in   : ∀ {n e t u}
+             → (good : nonZero u)
              → Ast Prim e t
---             → Ast Prim ((r , t) ∷ e) u
-             → Ast Prim (t ∷ e) u
-             → Ast Prim {n} e (decrementE {r} {good} u)
+             → Ast Prim (t ∷ (T.suc <$> e)) u
+             → Ast Prim {n} e (T.pred u {good})
 
-  --iden     : ∀ {n e} → (i : Fin n) → Data.Product.map id (λ x → Ast Prim {n} e x) (lookup i e)
-  iden     : ∀ {n e} → (i : Fin n) → Ast Prim {n} e (lookup i e)
+  iden     : ∀ {n e}
+             → (i : Fin n)
+             → Ast Prim {n} e (lookup i e)
 
-  ref      : ∀ {n e} → (i : Fin n) → Ast Prim {n} e (pointer (just (toℕ i)) (lookup i e))
-  load     : ∀ {n e t r} → Ast Prim {n} e (pointer r t) → Ast Prim {n} e t
-  store    : ∀ {n e t r} → Ast Prim {n} e (pointer r t) → Ast Prim {n} e t → Ast Prim {n} e unit
+  ref      : ∀ {n e}
+             → (i : Fin n)
+             → Ast Prim {n} e (pointer (just (toℕ i)) (lookup i e))
 
-  seq      : ∀ {n e r} {t : Type r} → Ast Prim {n} e unit → Ast Prim {n} e t → Ast Prim {n} e t
+  load     : ∀ {n e t r}
+             → Ast Prim {n} e (pointer r t)
+             → Ast Prim {n} e t
 
-Closed : (r : Region) → Set → Type r → Set
-Closed _ Prim Type = Ast Prim [] Type
+  store    : ∀ {n e t r}
+             → Ast Prim {n} e (pointer r t)
+             → Ast Prim {n} e t
+             → Ast Prim {n} e unit
+
+  seq      : ∀ {n e} {t : Type}
+             → Ast Prim {n} e unit
+             → Ast Prim {n} e t
+             → Ast Prim {n} e t
+
+Closed : Set → Type → Set
+Closed Prim Type = Ast Prim [] Type
