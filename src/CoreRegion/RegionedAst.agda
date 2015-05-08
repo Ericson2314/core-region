@@ -4,8 +4,8 @@ open import Category.Functor
 
 open import Data.Empty
 
-open import Data.Nat renaming (_≤_ to ℕ≤)
-open import Data.Fin renaming (_≤_ to Fin≤)
+open import Data.Nat hiding (_≤_)
+open import Data.Fin hiding (_≤_)
 open import Data.Vec
 open import Data.List
 open import Data.Product
@@ -17,35 +17,8 @@ open import Relation.Binary.PropositionalEquality
 
 open import Function
 
-
-Region : Set
-Region = Maybe ℕ
-
-incrementR : Region → Region
-incrementR = λ
-  { nothing → nothing
-  ; (just n) → just (n Data.Nat.+ 1)
-  }
-
-decrementR : (r : Region) -> {w : ¬ (r ≡ just 0) } → Region
-decrementR nothing = nothing
-decrementR (just n) {w} with n
-... | 0     = (λ()) $ w refl
-... | suc m = just m
-
-data _R≤_ : Region → Region → Set where
-  ≤Ω : ∀ {r} → r R≤ nothing
-  z≤n : ∀ {n} → just zero R≤ just n
-  s≤s : ∀ {m n} → (just m R≤ just n) → just (suc m) R≤ just (suc n)
-
-_R≤?_ : Decidable _R≤_
-_            R≤? nothing    = yes ≤Ω
-just zero    R≤? just n     = yes z≤n
-just (suc m) R≤? just zero  = no λ()
-nothing      R≤? just n     = no λ()
-just (suc m) R≤? just (suc n) with just m R≤? just n
-...            | yes m≤n = yes (_R≤_.s≤s m≤n)
-...            | no  m≰n = no  (λ { (s≤s pred) → m≰n pred })
+import CoreRegion.Region as R
+open R using (Region)
 
 
 data Type : (r : Region) → Set where
@@ -54,11 +27,11 @@ data Type : (r : Region) → Set where
   --pointer : ∀ r2 → (Σ[ r1 ∈ Region ] (Type r1)) → Type r2 -- might need to tighten
   pointer : ∀ r2 → Type nothing → Type r2 -- might need to tighten
 
-decrementE : {r : Region} {w : ¬ (r ≡ just 0)} → Type r → Type (decrementR r {w})
+decrementE : {r : Region} {w : ¬ (r ≡ just 0)} → Type r → Type (R.pred r {w})
 decrementE = λ
   { unit → unit
   ; prim → prim
-  ; {r} {w} (pointer .r x) → pointer (decrementR r {w}) x -- (decrementR _) x
+  ; {r} {w} (pointer .r x) → pointer (R.pred r {w}) x -- (R.pred _) x
   }
 
 Env : ℕ → Set
