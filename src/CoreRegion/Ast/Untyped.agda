@@ -1,4 +1,4 @@
-module CoreRegion.UntypedAst where
+module CoreRegion.Ast.Untyped where
 
 open import Data.Nat
 open import Data.Fin

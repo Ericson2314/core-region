@@ -1,4 +1,4 @@
-module CoreRegion.TypedAst where
+module CoreRegion.Ast.Typed where
 
 open import Data.Nat
 open import Data.Fin

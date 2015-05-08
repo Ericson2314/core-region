@@ -1,4 +1,4 @@
-module CoreRegion.RegionedAst where
+module CoreRegion.Ast.Regioned where
 
 open import Category.Functor
 
