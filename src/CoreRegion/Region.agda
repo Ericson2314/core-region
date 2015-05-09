@@ -66,3 +66,11 @@ nothing      ≤? just n     = no λ()
 just (Data.Nat.suc m) ≤? just (Data.Nat.suc n) with just m ≤? just n
 ... | yes m≤n = yes (_≤_.s≤s m≤n)
 ... | no  m≰n = no  (λ { (s≤s pred) → m≰n pred })
+
+nonZero-trans : ∀ {r1 r2}
+                → nonZero r1
+                → r1 ≤ r2
+                → nonZero r2
+nonZero-trans _ ≤Ω = λ()
+nonZero-trans _ (s≤s _) = λ ()
+nonZero-trans nz z≤n = λ _ → nz refl
