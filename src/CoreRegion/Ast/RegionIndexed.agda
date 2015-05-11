@@ -23,13 +23,14 @@ open import Data.Maybe
 
 open import Relation.Nullary
 open import Relation.Binary
-open import Relation.Binary.PropositionalEquality
-open Relation.Binary.PropositionalEquality.≡-Reasoning
+open import Relation.Binary.PropositionalEquality as PropEq
+open PropEq.≡-Reasoning
 
 open import Function
 
 import CoreRegion.Region as R
 open R using (Region)
+
 
 module T where
 
@@ -37,7 +38,7 @@ module T where
     unit : Type nothing
     prim : Type nothing
     -- order constraint ensures the lifetime of pointer is less than lifetime of
-    pointer : ∀ {r1} → ∀ r2 → { _ : r2 R.≤ r1 } → (Type r1) → Type r2
+    pointer : ∀ {s} → ∀ r → { _ : r R.≤ s } → (Type s) → Type r
 
   nonZero : ∀ {r} → Type r → Set
   nonZero (pointer r t) = R.nonZero r × nonZero t
@@ -76,14 +77,14 @@ t-subst : ∀{l} → {A B : Set l} → (_ : A ≡ B) → A → B
 t-subst {_} {A} {.A} refl x = x
 
 beef-up : {A : ℕ → Set }
-          → (∀{m} → A m → A (ℕ.suc m))
+          → (∀{m} → A m → A $ ℕ.suc m)
           → (n : ℕ)
-          → (∀{m} → A m → A (n ℕ.+ m))
+          → (∀{m} → A m → A $ n ℕ.+ m)
 beef-up _ zero = id
 beef-up {A} f (ℕ.suc n) {m} = rst ∘ f {m}
-  where rst : A (ℕ.suc m) → A ((ℕ.suc n) ℕ.+ m)
-        rst x = t-subst (cong A (eq {n} {m})) ret
-          where ret : A (n ℕ.+ (ℕ.suc m))
+  where rst : A (ℕ.suc m) → A (ℕ.suc n ℕ.+ m)
+        rst x = t-subst (cong A $ eq {n} {m}) ret
+          where ret : A $ n ℕ.+ ℕ.suc m
                 ret = beef-up {A} f n {ℕ.suc m} x
 
                 eq : ∀{n m} → (n ℕ.+ (ℕ.suc m)) ≡ ((ℕ.suc n) ℕ.+ m)
@@ -115,61 +116,61 @@ lookup-env {r = r} e t i with r
                 (λ{n : ℕ} → T.suc {just n})
                 (Fin.toℕ i)
                 t
+module E (Prim : Set) where
+  data Expr : ∀ {n r} → (tenv : Env n) → Type r → Set where
 
-data Expr (Prim : Set) : ∀ {n r} → (tenv : Env n) → Type r → Set where
+    prim-val : ∀ {n e}
+               → Prim
+               → Expr {n} e prim
 
-  prim-val : ∀ {n e}
-             → Prim
-             → Expr Prim {n} e prim
+    prim-app : ∀ {n e a}
+               → (Vec Prim a → Prim)
+               → Vec Prim a
+               → Expr {n} e prim
 
-  prim-app : ∀ {n e a}
-             → (Vec Prim a → Prim)
-             → Vec Prim a
-             → Expr Prim {n} e prim
+    let-in   : ∀ {n r s}
+               → {e  : Env n}
+               → {t  : Type r}
+               → {u  : Type s}
+               → {nz : R.nonZero s}
+               → Expr {_} {r} e t
+               → Expr ((r , t) ∷ e) u
+               → Expr e $ T.pred {s} {nz} u
 
-  let-in   : ∀ {n r s}
-             → {e  : Env n}
-             → {t  : Type r}
-             → {u  : Type s}
-             → {nz : R.nonZero s}
-             → Expr Prim {_} {r} e t
-             → Expr Prim ((r , t) ∷ e) u
-             → Expr Prim e (T.pred {s} {nz} u )
+    iden     : ∀ {n r}
+               → {e  : Env n}
+               → {t  : Type r}
+               → (i  : Fin n)
+               → {eq : (r , t) ≡ lookup i e}
+               → Expr {n} e $ lookup-env e t i {eq}
 
-  iden     : ∀ {n r}
-             → {e  : Env n}
-             → {t  : Type r}
-             → (i  : Fin n)
-             → {eq : (r , t) ≡ lookup i e}
-             → Expr Prim {n} e (lookup-env e t i {eq})
+    ref      : ∀ {n s}
+               → {e  : Env n}
+               → {t  : Type s}
+               → (i  : Fin n)
+               → {eq : (s , t) ≡ lookup i e}
+               → let r = just (Fin.toℕ i)
+                     s' = r R.+ s
+                     t' : Type s'
+                     t' = lookup-env e t i {eq}
+                 in Expr {n} e $ pointer {s'} r {R.+-≤} t'
 
-  ref      : ∀ {n s}
-             → {e  : Env n}
-             → {t  : Type s}
-             → (i  : Fin n)
-             → {eq : (s , t) ≡ lookup i e}
-             → let r = just (Fin.toℕ i)
-                   s' = r R.+ s
-                   t' : Type s'
-                   t' = lookup-env e t i {eq}
-               in Expr Prim {n} e (pointer {s'} r {R.+-≤} t')
+    load     : ∀ {n e r s le}
+               → {t : Type s}
+               → Expr {n} e $ pointer {s} r {le} t
+               → Expr {n} e t
 
-  load     : ∀ {n e r s le}
-             → {t : Type s}
-             → Expr Prim {n} e (pointer {s} r {le} t)
-             → Expr Prim {n} e t
+    store    : ∀ {n e r s le}
+               → {t : Type s}
+               → Expr {n} e $ pointer {s} r {le} t
+               → Expr {n} e t
+               → Expr {n} e unit
 
-  store    : ∀ {n e r s le}
-             → {t : Type s}
-             → Expr Prim {n} e (pointer {s} r {le} t)
-             → Expr Prim {n} e t
-             → Expr Prim {n} e unit
+    seq      : ∀ {n e r}
+               → {t : Type r}
+               → Expr {n} e unit
+               → Expr {n} e t
+               → Expr {n} e t
 
-  seq      : ∀ {n e r}
-             → {t : Type r}
-             → Expr Prim {n} e unit
-             → Expr Prim {n} e t
-             → Expr Prim {n} e t
-
-Closed : (r : Region) → Set → Type r → Set
-Closed _ Prim Type = Expr Prim [] Type
+  Closed : (r : Region) → Set → Type r → Set
+  Closed _ Prim Type = Expr [] Type
