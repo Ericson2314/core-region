@@ -18,7 +18,7 @@ module E (Prim : Set) where
 
     prim-app : ∀ n v
                → (Vec Prim v → Prim)
-               → Vec Prim v
+               → Vec (Recur n) v
                → Expr Recur n
 
     let-in   : ∀ n

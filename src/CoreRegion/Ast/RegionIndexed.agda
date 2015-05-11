@@ -130,7 +130,7 @@ module E (Prim : Set) where
 
     prim-app : ∀ {n e a}
                → (Vec Prim a → Prim)
-               → Vec Prim a
+               → Vec (Recur {n} e prim) a
                → Expr Recur {n} e prim
 
     let-in   : ∀ {n r s}
