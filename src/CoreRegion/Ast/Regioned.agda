@@ -71,10 +71,10 @@ data Expr (Prim : Set) : ∀ {n} → (tenv : Env n) → Type → Set where
              → Expr Prim {n} e prim
 
   let-in   : ∀ {n e t u}
-             → {good : nonZero u}
+             → {nz : nonZero u}
              → Expr Prim e t
              → Expr Prim (t ∷ (T.suc <$> e)) u
-             → Expr Prim {n} e (T.pred u {good})
+             → Expr Prim {n} e (T.pred u {nz})
 
   iden     : ∀ {n e}
              → (i : Fin n)

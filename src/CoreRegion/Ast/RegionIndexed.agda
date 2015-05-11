@@ -1,11 +1,21 @@
 module CoreRegion.Ast.RegionIndexed where
 
 open import Category.Functor
+open RawFunctor {{...}}
+
+open import Category.Applicative
+--open RawApplicative {{...}}
 
 open import Data.Empty
+open import Data.Unit
 
-open import Data.Nat hiding (_≤_)
-open import Data.Fin hiding (_≤_)
+import Data.Nat as ℕ
+open ℕ hiding (pred; suc)
+open import Data.Nat.Properties.Simple
+
+import Data.Fin as Fin
+open Fin hiding (pred; suc)
+
 open import Data.Vec
 open import Data.List
 open import Data.Product
@@ -14,51 +24,152 @@ open import Data.Maybe
 open import Relation.Nullary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality
+open Relation.Binary.PropositionalEquality.≡-Reasoning
 
 open import Function
 
 import CoreRegion.Region as R
 open R using (Region)
 
+module T where
 
-data Type : (r : Region) → Set where
-  unit : Type nothing
-  prim : Type nothing
-  --pointer : ∀ r2 → (Σ[ r1 ∈ Region ] (Type r1)) → Type r2 -- might need to tighten
-  pointer : ∀ r2 → Type nothing → Type r2 -- might need to tighten
+  data Type : (r : Region) → Set where
+    unit : Type nothing
+    prim : Type nothing
+    -- order constraint ensures the lifetime of pointer is less than lifetime of
+    pointer : ∀ {r1} → ∀ r2 → { _ : r2 R.≤ r1 } → (Type r1) → Type r2
 
-decrementE : {r : Region} {w : ¬ (r ≡ just 0)} → Type r → Type (R.pred r {w})
-decrementE = λ
-  { unit → unit
-  ; prim → prim
-  ; {r} {w} (pointer .r x) → pointer (R.pred r {w}) x -- (R.pred _) x
-  }
+  nonZero : ∀ {r} → Type r → Set
+  nonZero (pointer r t) = R.nonZero r × nonZero t
+  nonZero _             = ⊤
+
+  regionSaysEnough : ∀ {r} → {nz : R.nonZero r} → (t : Type r) → nonZero t
+  regionSaysEnough unit = record {}
+  regionSaysEnough prim = record {}
+  regionSaysEnough {r} {nz} (pointer {r'} .r {le} t) =
+    (nz , regionSaysEnough {r'} {R.nonZero-trans nz le} t)
+
+  suc : ∀{r} → Type r → Type (R.suc r)
+  suc     unit                     = unit
+  suc     prim                     = prim
+  suc {r} (pointer {r'} .r {le} t) = pointer (R.suc r) {R.≤-suc le} (suc t)
+
+  pred : {r : Region} {w : R.nonZero r} → Type r → Type (R.pred' r {w})
+  pred unit = unit
+  pred prim = prim
+  pred {r} {nz} (pointer {r'} .r {le} t) = pointer
+                                           {R.pred' r' {R.nonZero-trans nz le}}
+                                           (R.pred' r {nz})
+                                           {R.≤-pred le}
+                                           (pred t)
+
+open T hiding (suc; pred) public
+
 
 Env : ℕ → Set
---Env n = Vec (Σ[ r ∈ Region ] (Type r)) n
-Env n = Vec (Type nothing) n
+Env n = Vec (Σ[ r ∈ Region ] (Type r)) n
 
+private instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
+vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
 
-data Ast (Prim : Set) : ∀ {n r} → (tenv : Env n) → Type r → Set where
-  prim-val : ∀ {n e} → Prim → Ast Prim {n} e prim
-  prim-app : ∀ {n e a} → (Vec Prim a → Prim) → Vec Prim a → Ast Prim {n} e prim
+t-subst : ∀{l} → {A B : Set l} → (_ : A ≡ B) → A → B
+t-subst {_} {A} {.A} refl x = x
 
-  let-in   : ∀ {n e r t}
-             → (good : ¬ (r ≡ just 0))
-             → (u : Type r)
-             → Ast Prim e t
---             → Ast Prim ((r , t) ∷ e) u
-             → Ast Prim (t ∷ e) u
-             → Ast Prim {n} e (decrementE {r} {good} u)
+beef-up : {A : ℕ → Set }
+          → (∀{m} → A m → A (ℕ.suc m))
+          → (n : ℕ)
+          → (∀{m} → A m → A (n ℕ.+ m))
+beef-up _ zero = id
+beef-up {A} f (ℕ.suc n) {m} = rst ∘ f {m}
+  where rst : A (ℕ.suc m) → A ((ℕ.suc n) ℕ.+ m)
+        rst x = t-subst (cong A (eq {n} {m})) ret
+          where ret : A (n ℕ.+ (ℕ.suc m))
+                ret = beef-up {A} f n {ℕ.suc m} x
 
-  --iden     : ∀ {n e} → (i : Fin n) → Data.Product.map id (λ x → Ast Prim {n} e x) (lookup i e)
-  iden     : ∀ {n e} → (i : Fin n) → Ast Prim {n} e (lookup i e)
+                eq : ∀{n m} → (n ℕ.+ (ℕ.suc m)) ≡ ((ℕ.suc n) ℕ.+ m)
+                eq {zero} = refl
+                eq {ℕ.suc n} {m} =
+                  begin
+                    ℕ.suc n ℕ.+ ℕ.suc m
+                  ≡⟨ +-suc (ℕ.suc n) m ⟩
+                    ℕ.suc (ℕ.suc n ℕ.+ m)
+                  ≡⟨ refl ⟩
+                    ℕ.suc (ℕ.suc n ℕ.+ m)
+                  ∎
 
-  ref      : ∀ {n e} → (i : Fin n) → Ast Prim {n} e (pointer (just (toℕ i)) (lookup i e))
-  load     : ∀ {n e t r} → Ast Prim {n} e (pointer r t) → Ast Prim {n} e t
-  store    : ∀ {n e t r} → Ast Prim {n} e (pointer r t) → Ast Prim {n} e t → Ast Prim {n} e unit
+lookup-env : ∀{n r}
+             → (e : Env n)
+             → (t : Type r)
+             → (i : Fin n)
+             → {_ : (r , t) ≡ lookup i e}
+             → Type (just (Fin.toℕ i) R.+ r)
+lookup-env {r = r} e t i with r
+... | nothing = beef-up
+                {const $ Type nothing}
+                (λ{_ : ℕ} → T.suc {nothing})
+                (Fin.toℕ i)
+                {0}
+                t
+... | just y  = beef-up
+                {λ(n : ℕ) → Type (just n)}
+                (λ{n : ℕ} → T.suc {just n})
+                (Fin.toℕ i)
+                t
 
-  seq      : ∀ {n e r} {t : Type r} → Ast Prim {n} e unit → Ast Prim {n} e t → Ast Prim {n} e t
+data Expr (Prim : Set) : ∀ {n r} → (tenv : Env n) → Type r → Set where
+
+  prim-val : ∀ {n e}
+             → Prim
+             → Expr Prim {n} e prim
+
+  prim-app : ∀ {n e a}
+             → (Vec Prim a → Prim)
+             → Vec Prim a
+             → Expr Prim {n} e prim
+
+  let-in   : ∀ {n r s}
+             → {e  : Env n}
+             → {t  : Type r}
+             → {u  : Type s}
+             → {nz : R.nonZero s}
+             → Expr Prim {_} {r} e t
+             → Expr Prim ((r , t) ∷ e) u
+             → Expr Prim e (T.pred {s} {nz} u )
+
+  iden     : ∀ {n r}
+             → {e  : Env n}
+             → {t  : Type r}
+             → (i  : Fin n)
+             → {eq : (r , t) ≡ lookup i e}
+             → Expr Prim {n} e (lookup-env e t i {eq})
+
+  ref      : ∀ {n s}
+             → {e  : Env n}
+             → {t  : Type s}
+             → (i  : Fin n)
+             → {eq : (s , t) ≡ lookup i e}
+             → let r = just (Fin.toℕ i)
+                   s' = r R.+ s
+                   t' : Type s'
+                   t' = lookup-env e t i {eq}
+               in Expr Prim {n} e (pointer {s'} r {R.+-≤} t')
+
+  load     : ∀ {n e r s le}
+             → {t : Type s}
+             → Expr Prim {n} e (pointer {s} r {le} t)
+             → Expr Prim {n} e t
+
+  store    : ∀ {n e r s le}
+             → {t : Type s}
+             → Expr Prim {n} e (pointer {s} r {le} t)
+             → Expr Prim {n} e t
+             → Expr Prim {n} e unit
+
+  seq      : ∀ {n e r}
+             → {t : Type r}
+             → Expr Prim {n} e unit
+             → Expr Prim {n} e t
+             → Expr Prim {n} e t
 
 Closed : (r : Region) → Set → Type r → Set
-Closed _ Prim Type = Ast Prim [] Type
+Closed _ Prim Type = Expr Prim [] Type
