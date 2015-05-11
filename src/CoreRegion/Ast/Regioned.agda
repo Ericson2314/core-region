@@ -45,7 +45,7 @@ module T where
   suc basicT        = basicT
 
   pred : (t : Type) → {_ : nonZero t} → Type
-  pred (pointer r t) {rnz , tnz} = pointer (R.pred r {rnz}) $ pred t {tnz}
+  pred (pointer r t) {rnz , tnz} = pointer (R.pred' r {rnz}) $ pred t {tnz}
   pred basicT                    = basicT
 
 open T hiding (suc; pred) public
@@ -55,48 +55,48 @@ Env n = Vec Type n
 
 
 
-instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
+private instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
 vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
 
-data Ast (Prim : Set) : ∀ {n} → (tenv : Env n) → Type → Set where
+data Expr (Prim : Set) : ∀ {n} → (tenv : Env n) → Type → Set where
 
   prim-val : ∀ {n e}
              → Prim
-             → Ast Prim {n} e prim
+             → Expr Prim {n} e prim
 
   prim-app : ∀ {n e a}
              → (Vec Prim a
              → Prim)
              → Vec Prim a
-             → Ast Prim {n} e prim
+             → Expr Prim {n} e prim
 
   let-in   : ∀ {n e t u}
-             → (good : nonZero u)
-             → Ast Prim e t
-             → Ast Prim (t ∷ (T.suc <$> e)) u
-             → Ast Prim {n} e (T.pred u {good})
+             → {good : nonZero u}
+             → Expr Prim e t
+             → Expr Prim (t ∷ (T.suc <$> e)) u
+             → Expr Prim {n} e (T.pred u {good})
 
   iden     : ∀ {n e}
              → (i : Fin n)
-             → Ast Prim {n} e (lookup i e)
+             → Expr Prim {n} e (lookup i e)
 
   ref      : ∀ {n e}
              → (i : Fin n)
-             → Ast Prim {n} e (pointer (just (toℕ i)) (lookup i e))
+             → Expr Prim {n} e (pointer (just (toℕ i)) (lookup i e))
 
   load     : ∀ {n e t r}
-             → Ast Prim {n} e (pointer r t)
-             → Ast Prim {n} e t
+             → Expr Prim {n} e (pointer r t)
+             → Expr Prim {n} e t
 
   store    : ∀ {n e t r}
-             → Ast Prim {n} e (pointer r t)
-             → Ast Prim {n} e t
-             → Ast Prim {n} e unit
+             → Expr Prim {n} e (pointer r t)
+             → Expr Prim {n} e t
+             → Expr Prim {n} e unit
 
   seq      : ∀ {n e} {t : Type}
-             → Ast Prim {n} e unit
-             → Ast Prim {n} e t
-             → Ast Prim {n} e t
+             → Expr Prim {n} e unit
+             → Expr Prim {n} e t
+             → Expr Prim {n} e t
 
 Closed : Set → Type → Set
-Closed Prim Type = Ast Prim [] Type
+Closed Prim Type = Expr Prim [] Type
