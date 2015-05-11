@@ -116,33 +116,38 @@ lookup-env {r = r} e t i with r
                 (λ{n : ℕ} → T.suc {just n})
                 (Fin.toℕ i)
                 t
+
 module E (Prim : Set) where
-  data Expr : ∀ {n r} → (tenv : Env n) → Type r → Set where
+
+  ExprSig : Set₁
+  ExprSig = ∀ {n r} → (tenv : Env n) → Type r → Set
+
+  data Expr (Recur : ExprSig) : ExprSig where
 
     prim-val : ∀ {n e}
                → Prim
-               → Expr {n} e prim
+               → Expr Recur {n} e prim
 
     prim-app : ∀ {n e a}
                → (Vec Prim a → Prim)
                → Vec Prim a
-               → Expr {n} e prim
+               → Expr Recur {n} e prim
 
     let-in   : ∀ {n r s}
                → {e  : Env n}
                → {t  : Type r}
                → {u  : Type s}
                → {nz : R.nonZero s}
-               → Expr {_} {r} e t
-               → Expr ((r , t) ∷ e) u
-               → Expr e $ T.pred {s} {nz} u
+               → Recur {_} {r} e t
+               → Recur ((r , t) ∷ e) u
+               → Expr Recur e $ T.pred {s} {nz} u
 
     iden     : ∀ {n r}
                → {e  : Env n}
                → {t  : Type r}
                → (i  : Fin n)
                → {eq : (r , t) ≡ lookup i e}
-               → Expr {n} e $ lookup-env e t i {eq}
+               → Expr Recur {n} e $ lookup-env e t i {eq}
 
     ref      : ∀ {n s}
                → {e  : Env n}
@@ -153,24 +158,33 @@ module E (Prim : Set) where
                      s' = r R.+ s
                      t' : Type s'
                      t' = lookup-env e t i {eq}
-                 in Expr {n} e $ pointer {s'} r {R.+-≤} t'
+                 in Expr Recur {n} e $ pointer {s'} r {R.+-≤} t'
 
     load     : ∀ {n e r s le}
                → {t : Type s}
-               → Expr {n} e $ pointer {s} r {le} t
-               → Expr {n} e t
+               → Recur {n} e $ pointer {s} r {le} t
+               → Expr Recur {n} e t
 
     store    : ∀ {n e r s le}
                → {t : Type s}
-               → Expr {n} e $ pointer {s} r {le} t
-               → Expr {n} e t
-               → Expr {n} e unit
+               → Recur {n} e $ pointer {s} r {le} t
+               → Recur {n} e t
+               → Expr Recur {n} e unit
 
     seq      : ∀ {n e r}
                → {t : Type r}
-               → Expr {n} e unit
-               → Expr {n} e t
-               → Expr {n} e t
+               → Recur {n} e unit
+               → Recur {n} e t
+               → Expr Recur {n} e t
 
-  Closed : (r : Region) → Set → Type r → Set
-  Closed _ Prim Type = Expr [] Type
+  data ExprFix : ExprSig where
+    fix : ∀{n r}
+          → (e : Env n)
+          → (t : Type r)
+          → Expr ExprFix e t
+          → ExprFix e t
+
+  Closed : (r : Region) → Type r → Set
+  Closed _ Type = Expr ExprFix [] Type
+--    where Ex : ExprSig
+--          Ex e t = Expr Ex e t

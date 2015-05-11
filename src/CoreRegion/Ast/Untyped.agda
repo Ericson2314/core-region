@@ -4,42 +4,53 @@ open import Data.Nat
 open import Data.Fin
 open import Data.Vec
 
-data Expr (Prim : Set) : (maxI : ℕ) → Set where
 
-  prim-val : ∀ n
-             → Prim
-             → Expr Prim n
+module E (Prim : Set) where
 
-  prim-app : ∀ n v
-             → (Vec Prim v → Prim)
-             → Vec Prim v
-             → Expr Prim n
+  ExprSig : Set₁
+  ExprSig = (maxI : ℕ) → Set
 
-  let-in   : ∀ n
-             → Expr Prim n
-             → Expr Prim (suc n)
-             → Expr Prim n
+  data Expr (Recur : ExprSig) : ExprSig where
 
-  iden     : ∀ n
-             → Fin n
-             → Expr Prim n
+    prim-val : ∀ n
+               → Prim
+               → Expr Recur n
 
-  ref      : ∀ n
-             → Fin n
-             → Expr Prim n
+    prim-app : ∀ n v
+               → (Vec Prim v → Prim)
+               → Vec Prim v
+               → Expr Recur n
 
-  load     : ∀ n
-             → Expr Prim n
-             → Expr Prim n
-  store    : ∀ n
-             → Expr Prim n
-             → Expr Prim n
-             → Expr Prim n
+    let-in   : ∀ n
+               → Recur n
+               → Recur (suc n)
+               → Expr Recur n
 
-  seq      : ∀ n
-             → Expr Prim n
-             → Expr Prim n
-             → Expr Prim n
+    iden     : ∀ n
+               → Fin n
+               → Expr Recur n
 
-Closed : Set → Set
-Closed Prim = Expr Prim 0
+    ref      : ∀ n
+               → Fin n
+               → Expr Recur n
+
+    load     : ∀ n
+               → Recur n
+               → Expr Recur n
+    store    : ∀ n
+               → Recur n
+               → Recur n
+               → Expr Recur n
+
+    seq      : ∀ n
+               → Recur n
+               → Recur n
+               → Expr Recur n
+
+  data ExprFix : ExprSig where
+    fix : ∀ n
+          → Expr ExprFix n
+          → ExprFix n
+
+  Closed : Set
+  Closed = Expr ExprFix 0

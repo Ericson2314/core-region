@@ -58,45 +58,56 @@ Env n = Vec Type n
 private instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
 vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
 
-data Expr (Prim : Set) : ∀ {n} → (tenv : Env n) → Type → Set where
+module E (Prim : Set) where
 
-  prim-val : ∀ {n e}
-             → Prim
-             → Expr Prim {n} e prim
+  ExprSig : Set₁
+  ExprSig = ∀ {n} → (tenv : Env n) → Type → Set
 
-  prim-app : ∀ {n e a}
-             → (Vec Prim a
-             → Prim)
-             → Vec Prim a
-             → Expr Prim {n} e prim
+  data Expr (Recur : ExprSig) : ExprSig where
 
-  let-in   : ∀ {n e t u}
-             → {nz : nonZero u}
-             → Expr Prim e t
-             → Expr Prim (t ∷ (T.suc <$> e)) u
-             → Expr Prim {n} e (T.pred u {nz})
+    prim-val : ∀ {n e}
+               → Prim
+               → Expr Recur {n} e prim
 
-  iden     : ∀ {n e}
-             → (i : Fin n)
-             → Expr Prim {n} e (lookup i e)
+    prim-app : ∀ {n e a}
+               → (Vec Prim a → Prim)
+               → Vec Prim a
+               → Expr Recur {n} e prim
 
-  ref      : ∀ {n e}
-             → (i : Fin n)
-             → Expr Prim {n} e (pointer (just (toℕ i)) (lookup i e))
+    let-in   : ∀ {n e t u}
+               → {nz : nonZero u}
+               → Recur e t
+               → Recur (t ∷ (T.suc <$> e)) u
+               → Expr Recur {n} e (T.pred u {nz})
 
-  load     : ∀ {n e t r}
-             → Expr Prim {n} e (pointer r t)
-             → Expr Prim {n} e t
+    iden     : ∀ {n e}
+               → (i : Fin n)
+               → Expr Recur {n} e (lookup i e)
 
-  store    : ∀ {n e t r}
-             → Expr Prim {n} e (pointer r t)
-             → Expr Prim {n} e t
-             → Expr Prim {n} e unit
+    ref      : ∀ {n e}
+               → (i : Fin n)
+               → Expr Recur {n} e (pointer (just (toℕ i)) (lookup i e))
 
-  seq      : ∀ {n e} {t : Type}
-             → Expr Prim {n} e unit
-             → Expr Prim {n} e t
-             → Expr Prim {n} e t
+    load     : ∀ {n e t r}
+               → Recur {n} e (pointer r t)
+               → Expr Recur {n} e t
 
-Closed : Set → Type → Set
-Closed Prim Type = Expr Prim [] Type
+    store    : ∀ {n e t r}
+               → Recur {n} e (pointer r t)
+               → Recur {n} e t
+               → Expr Recur {n} e unit
+
+    seq      : ∀ {n e} {t : Type}
+               → Recur {n} e unit
+               → Recur {n} e t
+               → Expr Recur {n} e t
+
+  data ExprFix : ExprSig where
+    fix : ∀{n}
+          → (e : Env n)
+          → (t : Type)
+          → Expr ExprFix e t
+          → ExprFix e t
+
+  Closed : Type → Set
+  Closed Type = Expr ExprFix [] Type
