@@ -110,4 +110,4 @@ module E (Prim : Set) where
           → ExprFix e t
 
   Closed : Type → Set
-  Closed Type = Expr ExprFix [] Type
+  Closed t = Expr ExprFix [] t

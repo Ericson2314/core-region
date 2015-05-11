@@ -133,24 +133,21 @@ module E (Prim : Set) where
                → Vec (Recur {n} e prim) a
                → Expr Recur {n} e prim
 
-    let-in   : ∀ {n r s}
-               → {e  : Env n}
+    let-in   : ∀ {n e r s}
                → {t  : Type r}
                → {u  : Type s}
                → {nz : R.nonZero s}
-               → Recur {_} {r} e t
+               → Recur {n} {r} e t
                → Recur ((r , t) ∷ e) u
-               → Expr Recur e $ T.pred {s} {nz} u
+               → Expr Recur {n} e $ T.pred {s} {nz} u
 
-    iden     : ∀ {n r}
-               → {e  : Env n}
+    iden     : ∀ {n e r}
                → {t  : Type r}
                → (i  : Fin n)
                → {eq : (r , t) ≡ lookup i e}
                → Expr Recur {n} e $ lookup-env e t i {eq}
 
-    ref      : ∀ {n s}
-               → {e  : Env n}
+    ref      : ∀ {n e s}
                → {t  : Type s}
                → (i  : Fin n)
                → {eq : (s , t) ≡ lookup i e}
@@ -179,12 +176,12 @@ module E (Prim : Set) where
 
   data ExprFix : ExprSig where
     fix : ∀{n r}
-          → (e : Env n)
-          → (t : Type r)
+          → {e : Env n}
+          → {t : Type r}
           → Expr ExprFix e t
           → ExprFix e t
 
-  Closed : (r : Region) → Type r → Set
-  Closed _ Type = Expr ExprFix [] Type
+  Closed : Type nothing → Set
+  Closed t = ExprFix {0} {nothing} [] t
 --    where Ex : ExprSig
 --          Ex e t = Expr Ex e t

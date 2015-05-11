@@ -7,5 +7,7 @@ open import CoreRegion.Ast.Typed
 open import CoreRegion.Ast.Regioned
 open import CoreRegion.Ast.RegionIndexed
 
-open import CoreRegion.OperationSemantics
-open import CoreRegion.OperationSemantics.Types
+open import CoreRegion.Progs
+
+open import CoreRegion.OperationalSemantics
+open import CoreRegion.OperationalSemantics.Types
