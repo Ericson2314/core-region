@@ -30,6 +30,7 @@ open import Data.Sum
 open import Data.Maybe
 
 open import Relation.Nullary
+open import Relation.Unary
 open import Relation.Binary
 open import Relation.Binary.PropositionalEquality as PropEq
   using (_≡_; refl)
@@ -44,8 +45,8 @@ import CoreRegion.Ast.RegionIndexed as AST_RI
 open AST_RI
 open AST_RI.E Prim
 
-import CoreRegion.OperationalSemantics.SOS.Types Prim as CFG
-open CFG
+open import CoreRegion.OperationalSemantics.SOS.Types Prim as CFG
+open import CoreRegion.OperationalSemantics.SOS.Progress Prim as CFG
 
 private instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
 vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
@@ -73,22 +74,6 @@ inject {n} {r} {e} {t} (fix exp)= help exp
         help (store x y)       = expr $ store (recur x) (recur y)
         help (seq x y)         = expr $ seq (recur x) (recur y)
 
-progress : ∀ {n r e t}
-           → (c : Config {n} {r} e t)
-           → (isGood c)
-           → Tri (isValue c) (isRedex c) (isContext c)
-progress (value _)   _ = tri< tt id id
-progress (expr  exp) ttl with exp
-... | prim-val _ = tri≈ (λ z → z) tt (λ z → z)
-... | prim-app _ args = {!!}
-... | let-in x y = {!!}
-... | iden i = tri≈ (λ z → z) tt (λ z → z)
-... | ref i = tri≈ (λ z → z) tt (λ z → z)
-... | load x = {!!}
-... | store x y = {!!}
-... | seq x y = {!!}
-
--- ≢
 
 step : ∀ {n r e t}
        → (c  : Config {n} {r} e t)

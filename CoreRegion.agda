@@ -10,6 +10,7 @@ open import CoreRegion.Ast.RegionIndexed
 open import CoreRegion.Progs
 
 open import CoreRegion.OperationalSemantics.SOS
+open import CoreRegion.OperationalSemantics.SOS.Progress
 open import CoreRegion.OperationalSemantics.SOS.Types
 open import CoreRegion.OperationalSemantics.Machine
 open import CoreRegion.OperationalSemantics.Machine.Types

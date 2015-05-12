@@ -83,20 +83,22 @@ dummy (expr exp) with exp
 ... | store x y = dummy x ⊔ dummy y
 ... | seq x y = dummy x ⊔ dummy y
 
-
 {-# NON_TERMINATING #-}
--- BUT TOTALLY NOT ACTUALLY!
-isExpr : ConfigSig
-isExpr (value _) = ⊥
-isExpr (expr exp) with exp
-... | prim-val _ = ⊤
-... | prim-app _ args = All isExpr args
-... | let-in x y = isExpr x × isExpr y
-... | iden i = ⊤
-... | ref i = ⊤
-... | load x = isExpr x
-... | store x y = isExpr x × isExpr y
-... | seq x y = isExpr x × isExpr y
+mutual
+  isExpr : ConfigSig
+  isExpr (value _) = ⊥
+  isExpr (expr exp) = Expr' exp
+
+  Expr' : ∀ {n r e t} → Expr Config {n} {r} e t → Set
+  Expr' exp with exp
+  ... | prim-val _ = ⊤
+  ... | prim-app _ args = All isExpr args
+  ... | let-in x y = isExpr x × isExpr y
+  ... | iden i = ⊤
+  ... | ref i = ⊤
+  ... | load x = isExpr x
+  ... | store x y = isExpr x × isExpr y
+  ... | seq x y = isExpr x × isExpr y
 
 Redex : ∀ {n r e t} → Expr Config {n} {r} e t → Set
 Redex (prim-val _) = ⊤
@@ -123,20 +125,20 @@ mutual
     where p : ∀{n} → Vec (Config e prim) n → Set
           p []               = ⊥
           p (value _   ∷ as) = p as
-          p (expr  ctx ∷ as) = NonTerminal ctx × All isExpr as
-  Context (let-in (expr ctx) e)          = NonTerminal ctx × isExpr e
-  Context (let-in (value _)  (expr ctx)) = NonTerminal ctx
-  Context (let-in _          _)          = ⊥
+          p (expr  cx ∷ as) = NonTerminal cx × All isExpr as
+  Context (let-in (expr  c) (expr e)) = NonTerminal c × Expr' e
+  Context (let-in (value _) (expr c)) = NonTerminal c
+  Context (let-in _         _)        = ⊥
   Context (iden i) = ⊥
   Context (ref i) = ⊥
   Context (load (expr c))  = NonTerminal c
   Context (load (value _)) = ⊥
-  Context (store (expr ctx) e)         = NonTerminal ctx × isExpr e
-  Context (store (value _) (expr ctx)) = NonTerminal ctx
-  Context (store _         _)          = ⊥
-  Context (seq (expr ctx) e)         = NonTerminal ctx × isExpr e
-  Context (seq (value _) (expr ctx)) = NonTerminal ctx
-  Context (seq _         _)          = ⊥
+  Context (store (expr  c) (expr e)) = NonTerminal c × Expr' e
+  Context (store (value _) (expr c)) = NonTerminal c
+  Context (store _         _)        = ⊥
+  Context (seq (expr  c) (expr e)) = NonTerminal c × Expr' e
+  Context (seq (value _) (expr c)) = NonTerminal c
+  Context (seq _         _)        = ⊥
 
 isNonTerminal : ConfigSig
 isNonTerminal (value _) = ⊥
