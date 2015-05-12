@@ -1,4 +1,4 @@
-module CoreRegion.OperationalSemantics (Prim : Set) where
+module CoreRegion.OperationalSemantics.Machine (Prim : Set) where
 
 open import Category.Functor
 open RawFunctor {{...}}
@@ -41,7 +41,7 @@ import CoreRegion.Ast.RegionIndexed as AST_RI
 open AST_RI
 open AST_RI.E Prim
 
-open import CoreRegion.OperationalSemantics.Types Prim
+open import CoreRegion.OperationalSemantics.Machine.Types Prim
 
 private instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
 vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative

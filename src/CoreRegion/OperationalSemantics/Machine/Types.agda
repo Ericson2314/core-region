@@ -1,4 +1,4 @@
-module CoreRegion.OperationalSemantics.Types (Prim : Set) where
+module CoreRegion.OperationalSemantics.Machine.Types (Prim : Set) where
 
 open import Category.Functor
 open RawFunctor {{...}}
