@@ -8,7 +8,6 @@ open import Category.Applicative
 
 open import Data.Empty
 open import Data.Unit
-open import Data.Bool
 
 open import Category.Functor
 open import Category.Monad
@@ -63,7 +62,10 @@ data Config {n r} (e : Env n) (t : Type r) : Set where
   value : Value t → Config e t
   expr  : Expr Config e t → Config e t
 
-isValue : ∀ {n r e t} → Config {n} {r} e t → Set
+ConfigSig : Set₁
+ConfigSig = ∀ {n r e t} → Config {n} {r} e t → Set
+
+isValue : ConfigSig
 isValue (value _) = ⊤
 isValue _         = ⊥
 
@@ -84,7 +86,7 @@ dummy (expr exp) with exp
 
 {-# NON_TERMINATING #-}
 -- BUT TOTALLY NOT ACTUALLY!
-isExpr : ∀ {n r e t} → Config {n} {r} e t → Set
+isExpr : ConfigSig
 isExpr (value _) = ⊥
 isExpr (expr exp) with exp
 ... | prim-val _ = ⊤
@@ -111,6 +113,7 @@ Redex (seq (value _) (value _)) = ⊤
 Redex (seq _         _)         = ⊥
 
 mutual
+  -- Sorry I stole your terminology, grammars
   NonTerminal : ∀ {n r e t} → Expr Config {n} {r} e t → Set
   NonTerminal e = Context e ⊎ Redex e
 
@@ -134,3 +137,18 @@ mutual
   Context (seq (expr ctx) e)         = NonTerminal ctx × isExpr e
   Context (seq (value _) (expr ctx)) = NonTerminal ctx
   Context (seq _         _)          = ⊥
+
+isNonTerminal : ConfigSig
+isNonTerminal (value _) = ⊥
+isNonTerminal (expr  e) = NonTerminal e
+
+isRedex : ConfigSig
+isRedex (value _) = ⊥
+isRedex (expr  e) = Redex e
+
+isContext : ConfigSig
+isContext (value _) = ⊥
+isContext (expr  e) = Context e
+
+isGood : ConfigSig
+isGood e = (isValue e ⊎ isRedex e ⊎ isContext e)

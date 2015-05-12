@@ -6,6 +6,9 @@ open RawFunctor {{...}}
 open import Category.Applicative
 --open RawApplicative {{...}}
 
+open import Data.Empty
+open import Data.Unit
+
 open import Category.Functor
 open import Category.Monad
 open import Category.Monad.State
@@ -41,7 +44,8 @@ import CoreRegion.Ast.RegionIndexed as AST_RI
 open AST_RI
 open AST_RI.E Prim
 
-open import CoreRegion.OperationalSemantics.SOS.Types Prim
+import CoreRegion.OperationalSemantics.SOS.Types Prim as CFG
+open CFG
 
 private instance vecFunctor : ∀ {l n} → RawFunctor {l} (flip Vec n)
 vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
@@ -69,14 +73,42 @@ inject {n} {r} {e} {t} (fix exp)= help exp
         help (store x y)       = expr $ store (recur x) (recur y)
         help (seq x y)         = expr $ seq (recur x) (recur y)
 
+progress : ∀ {n r e t}
+           → (c : Config {n} {r} e t)
+           → (isGood c)
+           → Tri (isValue c) (isRedex c) (isContext c)
+progress (value _)   _ = tri< tt id id
+progress (expr  exp) ttl with exp
+... | prim-val _ = tri≈ (λ z → z) tt (λ z → z)
+... | prim-app _ args = {!!}
+... | let-in x y = {!!}
+... | iden i = tri≈ (λ z → z) tt (λ z → z)
+... | ref i = tri≈ (λ z → z) tt (λ z → z)
+... | load x = {!!}
+... | store x y = {!!}
+... | seq x y = {!!}
 
-{-
-step : ∀ {r}
-       → {t : Type r}
-       → (stk : Stack stack-len)
-       → {env : Env env-len}
-       → {typ : Type r}
-       → {typ : Type r}
-step = {!!}
+-- ≢
 
--}
+step : ∀ {n r e t}
+       → (c  : Config {n} {r} e t)
+       → {_ : isNonTerminal c}
+       → Σ[ c' ∈ Config {n} {r} e t ] ((¬ (c' ≡ c)) × (isGood c'))
+step (value _) = λ {}
+step (expr exp) with exp
+
+... | prim-val p = λ {_} → CFG.value (CFG.prim p) , (λ ()) , inj₁ tt
+
+... | prim-app f args = {!!}
+
+... | let-in x y = {!!}
+
+... | iden i = {!!}
+
+... | ref i = {!!}
+
+... | load x = {!!}
+
+... | store x y = {!!}
+
+... | seq x y = {!!}
