@@ -136,10 +136,9 @@ module E (Prim : Set) where
     let-in   : ∀ {n e r s}
                → {t  : Type r}
                → {u  : Type s}
-               → {nz : R.nonZero s}
                → Recur {n} {r} e t
-               → Recur ((r , t) ∷ e) u
-               → Expr Recur {n} e $ T.pred {s} {nz} u
+               → Recur ((r , t) ∷ e) (T.suc u)
+               → Expr Recur {n} e u
 
     iden     : ∀ {n e r}
                → {t  : Type r}

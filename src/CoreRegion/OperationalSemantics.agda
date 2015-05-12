@@ -48,29 +48,13 @@ vecFunctor = RawApplicative.rawFunctor Data.Vec.applicative
 
 private instance maybeFunctor = Data.Maybe.functor
 
-inject : ∀{t} → Closed t → Configuration 0 [] t
-
-inject (fix (let-in
-             {s = just 0}
-             {u = pointer (just 0) t}
-             {nz = nz}
-             _
-             _))
-       {t = T.pred {just 0} {.nz} (pointer (just 0) t)}
-       = ?
-  where x : Set
-        x = T.pred {just 0} {nz} (pointer (just 0) t)
-{-
-inject (let-in
-        {0}
-        {[]}
-        {nothing}
-        {s = just 0}
-        {t}
-        {u}
-{s = just (ℕ.suc s)} _ _) = {!!}
--}
-inject x = {!!}
+inject : ∀{t} → Closed t → Configuration 0 {0} {nothing} [] t
+inject x = record
+  { unvisited           = x
+  ; callStack           = halt
+  ; prf-region-stacklen = record {}
+  ; prf-env-stacklen    = z≤n
+  }
 
 {-
 step : ∀ {r}
@@ -80,4 +64,5 @@ step : ∀ {r}
        → {typ : Type r}
        → {typ : Type r}
 step = {!!}
+
 -}

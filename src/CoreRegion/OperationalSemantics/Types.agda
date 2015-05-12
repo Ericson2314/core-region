@@ -152,7 +152,7 @@ data Configuration : ExprSig where
 -}
 
 
---- How many let bindings back can we index?
+-- How many let bindings back can we index?
 let-succ : ∀ {n r e t}
            → ΣContext {n} {r} e t
            → (ℕ → ℕ)
@@ -164,8 +164,10 @@ let-succ _            = id
 -- TODO: Why is this discontinuous?
 region-stacklen : Region → ℕ → Set
 region-stacklen nothing  n = ⊤
-region-stacklen (just r) n = n ℕ.≤ r
+region-stacklen (just r) n = r ℕ.≤ n
 
+env-stacklen : ℕ → ℕ → Set
+env-stacklen = ℕ._≤_
 
 -- `m` represents the number of lets in the stack
 data CallStack : (m : ℕ)
@@ -183,6 +185,7 @@ data CallStack : (m : ℕ)
              {m n' r' e' t'}
           → (cxt : ΣContext {n} {r} e t)
           → {_ : region-stacklen r m}
+          → {_ : env-stacklen n m}
           → CallStack m {n'} {r'} e' t'
           → CallStack (let-succ cxt m) {n} {r} e t
 
@@ -194,8 +197,10 @@ record Configuration (m : ℕ)
                      : Set
                      where
   field
-    unvisited : ExprFix {n} {r} e t
-    callStack : CallStack m {n} {r} e t
+    unvisited           : ExprFix {n} {r} e t
+    callStack           : CallStack m {n} {r} e t
+    prf-region-stacklen : region-stacklen r m
+    prf-env-stacklen    : env-stacklen n m
 
 
 -- Every Σ-type is a risk....
